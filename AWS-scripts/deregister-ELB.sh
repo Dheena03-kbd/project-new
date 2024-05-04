@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-ELB_NAME="your-elb-name"
+ELB_NAME="elb-name"
 
 # current registered instance IDs from ELB
 registered_instances=$(aws elb describe-load-balancers --load-balancer-names $ELB_NAME --query 'LoadBalancerDescriptions[0].Instances[*].InstanceId' --output text)
