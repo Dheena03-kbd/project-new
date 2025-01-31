@@ -1,0 +1,53 @@
+---
+- name: Restart Tomcat and manage ELB
+  hosts: localhost
+  gather_facts: true
+  vars:
+    region: eu-central-1
+    instance_id: i-05e31f610c62b9905
+    elb_name: RTB1FR
+  tasks:
+    - name: Remove instance from ELB
+      community.aws.elb_instance:
+        region: "{{ region }}"
+        instance_id: "{{ instance_id }}"
+        state: absent
+        ec2_elbs:
+          - "{{ elb_name }}"
+        wait_timeout: 60  # 1 minute
+      register: remove_elb_result
+
+    - name: Wait for 5 minutes before stopping Tomcat
+      wait_for:
+        timeout: 300  # 5 minutes
+
+    - name: Shutdown Tomcat
+      command: /opt/tomcat/bin/shutdown.sh
+      ignore_errors: yes
+
+    - name: Kill Java processes if Tomcat shutdown fails
+      command: pkill -9 java
+      ignore_errors: yes
+
+    - name: Remove files from /opt/server/*
+      file:
+        path: /opt/server/
+        state: absent
+      ignore_errors: yes
+
+    - name: Start Tomcat
+      command: /opt/tomcat/bin/startup.sh
+
+    - name: Wait for 7 minutes after starting Tomcat
+      wait_for:
+        timeout: 420  # 7 minutes
+
+    - name: Add instance back to ELB
+      community.aws.elb_instance:
+        region: "{{ region }}"
+        instance_id: "{{ instance_id }}"
+        state: present
+        ec2_elbs:
+          - "{{ elb_name }}"
+        wait_timeout: 60  # 1 minute
+      register: add_elb_result

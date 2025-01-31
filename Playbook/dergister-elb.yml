@@ -1,0 +1,26 @@
+---
+- name: Deregister all nodes from ELB
+  hosts: localhost
+  gather_facts: no
+  collections:
+    - community.aws
+    - amazon.aws
+  tasks:
+    - name: Get details of instances in the Classic ELB
+      amazon.aws.elb_classic_lb_info:
+        names:
+          - "RTB1FR"
+        region: "eu-central-1"
+      register: elb_info
+
+    - name: Debug ELB Info
+      debug:
+        var: elb_info
+
+    - name: Deregister instances from ELB
+      community.aws.elb_instance:
+        region: "eu-central-1"
+        state: absent
+        instance_id: "{{ item }}"
+      loop: "{{ elb_info.elbs[0].instances | map(attribute='instance_id') | list }}"
+      when: elb_info.elbs is defined and elb_info.elbs | length > 0 and elb_info.elbs[0].instances | length > 0

@@ -1,0 +1,27 @@
+---
+- name: Register tagged instances to ELB
+  hosts: localhost
+  gather_facts: no
+  collections:
+    - community.aws
+    - amazon.aws
+  tasks:
+    - name: Get instances with specific tag
+      amazon.aws.ec2_instance_info:
+        region: "eu-central-1"
+        filters:
+          "tag:Name": "RTB1FR-Node"
+      register: ec2_info
+
+    - name: Debug instance IDs
+      debug:
+        msg: "{{ ec2_info.instances | json_query('[].instance_id') }}"
+
+    - name: Register instances to ELB
+      community.aws.elb_instance:
+        region: "eu-central-1"
+        instance_id: "{{ item }}"
+        state: present
+        ec2_elbs: ["RTB1FR"]
+      loop: "{{ ec2_info.instances | json_query('[].instance_id') }}"
+      when: ec2_info.instances is defined and ec2_info.instances | length > 0
